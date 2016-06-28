@@ -5,7 +5,7 @@ rm(list=ls())
 library(dplyr)
 library(car)
 library(tidyr)
-
+library(ggplot2)
 # load the data file [this is the one from Pieter], put NA where there is emptiness or undetermined
 DF <- read.csv("./Output16_CTX.csv",na.strings = c("", 'Undetermined'))
 ex_dup <-read.csv("./marked_sample_ex.csv") # Samples which are re-run and should be excluded (on top of the ones Rene has
@@ -156,6 +156,9 @@ DF5$qu_ratio[is.na(DF5$ratio_CV)] <- NA # if the CTX has too high varaince and i
 tot_excluded = ex1 + ex2 + ex3 + ex4
 
 # Add variable with patient id
+DF5 <- DF5 %>%
+  filter(!is.na(qu_ratio))
+
 DF5$patient_id = gsub("S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
 
 # Add variable with sample number
@@ -165,6 +168,13 @@ for(i in unique(DF5$patient_id)){
   d$s_num = c(1:length(d$sample_name))
   DF6 = rbind(DF6,d)
 }
+
+# CHECK FOR WEIRD OUTLIERS  
+ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,120)
+
+# Patient IT_3294 is only one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
+# Also the 16s quantity is pretty low in this sample.
+
 
 # export excel table
 write.csv(DF6, file="./CleanedCTX_M16sRatioErr.csv")
@@ -176,7 +186,7 @@ DFQC1 <- DF %>%
 
 DFQC2 <- DF %>%
   filter(sample_name == "quantity control sample",type == "CTX-M")
-  
+
 
 
 
