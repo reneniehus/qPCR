@@ -10,7 +10,7 @@ DF <- read.csv("./Output16_CTX.csv",na.strings = c("", 'Undetermined'))
 # great habit to look at the first and the last couple of rows
 head(DF)
 tail(DF)
-View(DF)
+#View(DF)
 # to be consistent, change all names in the header to small-case letters
 names(DF) <- tolower(names(DF))
 #
