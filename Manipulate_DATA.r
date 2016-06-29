@@ -169,7 +169,7 @@ for(i in unique(DF5$patient_id)){
   DF6 = rbind(DF6,d)
 }
 
-# CHECK FOR WEIRD OUTLIERS  
+# Check for strange outliers
 ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,120)
 
 # Patient IT_3294 is only one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
