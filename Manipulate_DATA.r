@@ -187,6 +187,7 @@ DFQC1 <- DF %>%
 DFQC2 <- DF %>%
   filter(sample_name == "quantity control sample",type == "CTX-M")
 
+#check this out! 
 
 
 
