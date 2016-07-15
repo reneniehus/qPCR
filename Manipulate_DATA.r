@@ -1,4 +1,4 @@
-setwd("~/Dropbox/RGNOSIS/Data/SATURN/Yehuda/")
+setwd("~/Documents/RGNOSIS/qPCR/")
 
 rm(list=ls())
 # load those libraries
@@ -7,8 +7,8 @@ library(car)
 library(tidyr)
 library(ggplot2)
 # load the data file [this is the one from Pieter], put NA where there is emptiness or undetermined
-DF <- read.csv("./Output16_CTX.csv",na.strings = c("", 'Undetermined'))
-ex_dup <-read.csv("./marked_sample_ex.csv") # Samples which are re-run and should be excluded (on top of the ones Rene has
+DF <- read.csv("./Raw_data/Output16_CTX.csv",na.strings = c("", 'Undetermined'))
+ex_dup <-read.csv("./Raw_data/marked_sample_ex.csv") # Samples which are re-run and should be excluded (on top of the ones Rene has
                                             # manually exluded at lines 32-77). Selection based on 1) whether marked yellow by
                                             # agatha. 2) when none of the re-runned samples marked yellow, the first run with
                                             # valid quantities is taken (i.e. quantity != NA)
@@ -174,10 +174,19 @@ ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()
 
 # Patient IT_3294 is only one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
 # Also the 16s quantity is pretty low in this sample.
+png(filename="./Figures/ctxm_per_patient.png", width=750, height=750)
+p = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,20)
+print(p)
+dev.off()
 
+png(filename="./Figures/ctxm_patients_together.png", width=750, height=500)
+p2 = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id, col=patient_id))+geom_point()+geom_line()+ylim(0,20)+
+  xlab("sample number") + ylab("Abundance CTX-M relative to 16s")
+print(p2)
+dev.off()
 
 # export excel table
-write.csv(DF6, file="./CleanedCTX_M16sRatioErr.csv")
+write.csv(DF6, file="./Cleaned_data/CleanedCTX_M16sRatioErr.csv")
 
 # What distribution does the within PCR error follow
 # Get to the distribution of the quantitiy control sample
@@ -187,7 +196,6 @@ DFQC1 <- DF %>%
 DFQC2 <- DF %>%
   filter(sample_name == "quantity control sample",type == "CTX-M")
 
-#check this out! 
 
 
 
