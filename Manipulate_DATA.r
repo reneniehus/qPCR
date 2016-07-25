@@ -1,3 +1,10 @@
+##################################################
+# Cleaning of qPCR data, remove spurious results
+##################################################
+
+# Author: Rene Niehus with contributions of Esther van Kleef
+# Date: 28 June 2016 
+
 setwd("~/Documents/RGNOSIS/qPCR/")
 
 rm(list=ls())
@@ -183,7 +190,10 @@ lines(density(rtnorm(10000,mean = tn_ctx$estimate[[1]], sd = tn_ctx$estimate[[2]
 DF5 <- DF5 %>%
   filter(!is.na(qu_ratio))
 
-DF5$patient_id = gsub("S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
+DF5$patient_id = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
+
+# To make the ids comparable to the abx and clinical data
+DF5$patient_id = gsub("_","",DF5$patient_id)
 
 # Add variable with sample number
 DF6=NULL  
@@ -196,18 +206,27 @@ for(i in unique(DF5$patient_id)){
 # Check for strange outliers
 ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,120)
 
-# Patient IT_3294 is only one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
+# Patient IT_3294 is  one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
 # Also the 16s quantity is pretty low in this sample.
-png(filename="./Figures/ctxm_per_patient.png", width=1200, height=1000)
-p = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+
+length(DF6$qu_ratio[DF6$qu_ratio>1]) # 38 have a ratio > 1
+
+ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+
+  geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),
+                colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-0.1,1) + ylab("Abundance CTX-M relative to 16s")
+
+# Interesting enough, most of the patients with a ratio >1 have a consistent ratio above. Would be interesting
+# to investigate these patients seperately
+
+png(filename="./Figures/ctxm_per_patient_above1exc.png", width=1200, height=1000)
+p = ggplot(DF6[DF6$qu_ratio<=1,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+
                 geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),
-               colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-1,15) + ylab("Abundance CTX-M relative to 16s")
+               colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-0.1,1) + ylab("Abundance CTX-M relative to 16s")
 print(p)
 dev.off()
 
-png(filename="./Figures/ctxm_patients_together.png", width=1000, height=800)
-p2 = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id, col=patient_id))+geom_point()+geom_line()+
-  geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),width = 0.4)+ylim(-1,15)+
+png(filename="./Figures/ctxm_patients_together_above1exc.png", width=1000, height=800)
+p2 = ggplot(DF6[DF6$qu_ratio<=1,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id, col=patient_id))+geom_point()+geom_line()+
+  geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),width = 0.4)+ylim(-0.1,1)+
   xlab("sample number") + ylab("Abundance CTX-M relative to 16s")
 print(p2)
 dev.off()
