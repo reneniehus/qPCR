@@ -5,7 +5,7 @@ rm(list=ls())
 library(dplyr)
 library(car)
 library(tidyr)
-library(ggplot2)
+library(ggplot2); library(msm); library(fitdistrplus)
 # load the data file [this is the one from Pieter], put NA where there is emptiness or undetermined
 DF <- read.csv("./Raw_data/Output16_CTX.csv",na.strings = c("", 'Undetermined'))
 ex_dup <-read.csv("./Raw_data/marked_sample_ex.csv") # Samples which are re-run and should be excluded (on top of the ones Rene has
@@ -127,11 +127,17 @@ names(DF4) =  c("sample_name","type1","ct_mean_16s","ct_sd_16s","qu_mean_16s","q
                 "reps_16s","type2","ct_mean_CTX","ct_sd_CTX","qu_mean_CTX","qu_sd_CTX","qu_CV_CTX","reps_CTX")
 DF4 <- DF4 %>%
   select(-type1, -type2)
-# Add the quantity ratios
-DF4$qu_ratio <- DF4$qu_mean_CTX/DF4$qu_mean_16s
-# Add the error for the quantity ratio, relevant paper: doi:10.1016/j.clinbiochem.2006.12.014
+# Add the quantity ratios, relevant paper: doi:10.1016/j.clinbiochem.2006.12.014
+DF4$qu_ratio <-(DF4$qu_mean_CTX/DF4$qu_mean_16s)*(1+(DF4$qu_CV_16s^2)/2) # See discussion paper, if mean of X and Y each seperately determined, then this better than eq (3)
+#DF4$qu_ratio2 <- DF4$qu_mean_CTX/DF4$qu_mean_16s
+
+# Add the SD for the quantity ratio, relevant paper: doi:10.1016/j.clinbiochem.2006.12.014
+DF4$ratio_SD <- (DF4$qu_mean_CTX/DF4$qu_mean_16s)*(sqrt(DF4$qu_CV_CTX^2 + DF4$qu_CV_16s^2 + 3*DF4$qu_CV_16s^2*DF4$qu_CV_CTX^2 + 8*DF4$qu_CV_16s^4))
+
+# Add the CV for the quantity ratio, relevant paper: doi:10.1016/j.clinbiochem.2006.12.014
 DF4$ratio_CV <- sqrt(DF4$qu_CV_CTX^2 + DF4$qu_CV_16s^2 + 3*DF4$qu_CV_16s^2*DF4$qu_CV_CTX^2 + 8*DF4$qu_CV_16s^4)/(1 + DF4$qu_CV_16s^2)
 #
+
 # Data detectability: set ratio to zero when Ct_mean of CTXm > 30 
 # my CV cutoff needs to 30% based on paper: doi:10.1016/j.clinbiochem.2006.12.014
 # remove all rows with ratio NA
@@ -148,12 +154,30 @@ DF5$qu_ratio[(DF5$ct_mean_16s) > 30 & (!is.na(DF5$ct_mean_CTX))] <- NA # set rat
 ex3 = table((DF5$qu_CV_16s > 0.30))["TRUE"]
 DF5$qu_ratio[(DF5$qu_CV_16s > 0.30)] <- NA # if the 16s has a too high variance then we don't believe result
 ex4 = table((DF5$qu_CV_CTX > 0.30) & !(DF5$ct_mean_CTX > 30))["TRUE"]
-DF5$qu_ratio[(DF5$qu_CV_CTX > 0.30) & !(DF5$ct_mean_CTX > 30)] <- NA # if the CTX has too high varaince and is not set to zero
+DF5$qu_ratio[(DF5$qu_CV_CTX > 0.30) & !(DF5$ct_mean_CTX > 30)] <- NA # if the CTX has too high variance and is not set to zero
 #
 ex5 = table(is.na(DF5$ratio_CV))["TRUE"]
-DF5$qu_ratio[is.na(DF5$ratio_CV)] <- NA # if the CTX has too high varaince and is not set to zero
+DF5$qu_ratio[is.na(DF5$ratio_CV)] <- NA # if the CTX has too high variance and is not set to zero
 
 tot_excluded = ex1 + ex2 + ex3 + ex4
+
+######################
+# Paper doi:10.1016/j.clinbiochem.2006.12.014 assumes a truncuated normal distribution
+#Function for trucated normal distribution
+dtnorm0 <- function(X, mean, sd, log = FALSE) {dtnorm(X, mean, sd, lower=0, upper=Inf,
+                                                      log)}
+#Fit data to truncated normal
+tn_16s <- fitdistr(DF5$qu_mean_16s, dtnorm0, start=list(mean=0, sd=1))
+tn_ctx <- fitdistr(DF5$qu_mean_CTX, dtnorm0, start=list(mean=0, sd=1))
+
+plot(density(DF4$qu_mean_16s), main="Fit truncutated Normal distribution to mu_16S")
+lines(density(rtnorm(10000,mean = tn_16s$estimate[[1]], sd = tn_16s$estimate[[2]],lower=0,upper=Inf)),col="red")
+
+plot(density(DF4$qu_mean_CTX), main="Fit truncutated Normal distribution to mu_ctx")
+lines(density(rtnorm(10000,mean = tn_ctx$estimate[[1]], sd = tn_ctx$estimate[[2]],lower=0,upper=Inf)),col="red")
+
+# The truncuated normal is not approximating the distribution of both 16S and CTX-m very well;
+# Errors produced with the fit of the truncated distribution however.
 
 # Add variable with patient id
 DF5 <- DF5 %>%
@@ -174,13 +198,16 @@ ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()
 
 # Patient IT_3294 is only one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
 # Also the 16s quantity is pretty low in this sample.
-png(filename="./Figures/ctxm_per_patient.png", width=750, height=750)
-p = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,20)
+png(filename="./Figures/ctxm_per_patient.png", width=1200, height=1000)
+p = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+
+                geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),
+               colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-1,15) + ylab("Abundance CTX-M relative to 16s")
 print(p)
 dev.off()
 
-png(filename="./Figures/ctxm_patients_together.png", width=750, height=500)
-p2 = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id, col=patient_id))+geom_point()+geom_line()+ylim(0,20)+
+png(filename="./Figures/ctxm_patients_together.png", width=1000, height=800)
+p2 = ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id, col=patient_id))+geom_point()+geom_line()+
+  geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),width = 0.4)+ylim(-1,15)+
   xlab("sample number") + ylab("Abundance CTX-M relative to 16s")
 print(p2)
 dev.off()
