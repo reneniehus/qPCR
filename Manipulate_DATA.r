@@ -29,7 +29,7 @@ names(DF) <- tolower(names(DF))
 #
 # Create DF2: only samples, no control samples, turn factor into character or numeric, adjust hyphones in sample names 
 DF2 <- DF %>% 
-  select(-pcr_type) %>%
+  dplyr::select(-pcr_type) %>%
   filter(class == "UNKNOWN",
          !(sample_name %in% c("quantity control sample","quantity control Rm1299"))) %>%
   mutate(sample_name=as.character(sample_name),
@@ -111,7 +111,7 @@ length(unique(DF2$sample_name))
 
 # Create DF3: remove mean and sd collums and class, make groups based on sample and type, create my own means and standard deviations 
 DF3 <- DF2 %>%
-  select(-ct_mean, -ct_sd, -quantity_mean, - quantity_sd, -class) %>%
+  dplyr::select(-ct_mean, -ct_sd, -quantity_mean, - quantity_sd, -class) %>%
   group_by(sample_name, type) %>%
   summarise(ct_mean2=mean(ct,na.rm=TRUE),ct_sd2=sd(ct,na.rm=TRUE),qu_mean2=mean(quantity_adj,na.rm=TRUE),qu_sd2=sd(quantity_adj,na.rm=TRUE),
             qu_CV=sd(quantity_adj,na.rm=TRUE)/mean(quantity_adj,na.rm=TRUE), reps =n() ) %>%
@@ -133,7 +133,7 @@ DF4 <- full_join(DF16s,DFCTX,by = "sample_name")
 names(DF4) =  c("sample_name","type1","ct_mean_16s","ct_sd_16s","qu_mean_16s","qu_sd_16s","qu_CV_16s",
                 "reps_16s","type2","ct_mean_CTX","ct_sd_CTX","qu_mean_CTX","qu_sd_CTX","qu_CV_CTX","reps_CTX")
 DF4 <- DF4 %>%
-  select(-type1, -type2)
+  dplyr::select(-type1, -type2)
 # Add the quantity ratios, relevant paper: doi:10.1016/j.clinbiochem.2006.12.014
 DF4$qu_ratio <-(DF4$qu_mean_CTX/DF4$qu_mean_16s)*(1+(DF4$qu_CV_16s^2)/2) # See discussion paper, if mean of X and Y each seperately determined, then this better than eq (3)
 #DF4$qu_ratio2 <- DF4$qu_mean_CTX/DF4$qu_mean_16s
