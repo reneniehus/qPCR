@@ -122,7 +122,7 @@ DF = data.frame(cbind(patient_id=DF$patient_id,country =DF$Country.Code,
 
 DF2 = DF %>%
   dplyr::select(-patient_id,-RectalDate,-DischargeDate,-country,-sample,-sample_name2) %>%
-  group_by(sample_name) %>% summarise_each(funs(mean)) 
+  group_by(sample_name) %>% summarise_each(funs(median)) 
 a = as.data.frame(cbind(patient_id=as.character(DF$patient_id[no_dup]),sample_name=as.character(DF$sample_name[no_dup]),
                         sample_name2=as.character(DF$sample_name2[no_dup]),RectalDate=as.character(DF$RectalDate[no_dup])))
 
