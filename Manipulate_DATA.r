@@ -195,13 +195,15 @@ DF5$patient_id = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
 # To make the ids comparable to the abx and clinical data
 DF5$patient_id = gsub("_","",DF5$patient_id)
 
+
 # Add variable with sample number
-DF6=NULL  
-for(i in unique(DF5$patient_id)){
-  d = DF5[DF5$patient_id == i,]
-  d$s_num = c(1:length(d$sample_name))
-  DF6 = rbind(DF6,d)
+screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13")
+DF5$s_num=rep(NA,1,length(DF5$sample_name))  
+for(i in unique(screen_n)){
+  DF5$s_num[grep(i,DF5$sample_name)] = which(screen_n==i)-1
 }
+
+DF6 = DF5
 
 # Check for strange outliers
 ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+facet_wrap(~patient_id,ncol=10)+ylim(0,120)
