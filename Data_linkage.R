@@ -118,11 +118,11 @@ DF = data.frame(cbind(patient_id=DF$patient_id,country =DF$Country.Code,
                       sample_name=DF$sample_name,sample_name2=DF$sample_name2,RectalDate=as.character(DF$RectalDate),DischargeDate=as.character(DF$PatientDischargeDate),as.data.frame(sapply(DF[,which(!names(DF)%in%c("patient_id","Country.Code","sample_name","RectalDate", 
                                                                                                                                                                                                                         "sample_name2","PatientDischargeDate"))]
                                                                                                              ,function(x) as.numeric(x)))))
+# ignore errors, is due to applying as.numeric to empty cells
 
 DF2 = DF %>%
   dplyr::select(-patient_id,-RectalDate,-DischargeDate,-country,-sample,-sample_name2) %>%
-  group_by(sample_name) %>% summarise_each(funs(mean)) # ignore errors, is due to applying mean function to character
-
+  group_by(sample_name) %>% summarise_each(funs(mean)) 
 a = as.data.frame(cbind(patient_id=as.character(DF$patient_id[no_dup]),sample_name=as.character(DF$sample_name[no_dup]),
                         sample_name2=as.character(DF$sample_name2[no_dup]),RectalDate=as.character(DF$RectalDate[no_dup])))
 
