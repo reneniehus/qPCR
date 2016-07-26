@@ -145,6 +145,18 @@ DF4$ratio_SD <- (DF4$qu_mean_CTX/DF4$qu_mean_16s)*(sqrt(DF4$qu_CV_CTX^2 + DF4$qu
 DF4$ratio_CV <- sqrt(DF4$qu_CV_CTX^2 + DF4$qu_CV_16s^2 + 3*DF4$qu_CV_16s^2*DF4$qu_CV_CTX^2 + 8*DF4$qu_CV_16s^4)/(1 + DF4$qu_CV_16s^2)
 #
 
+
+# Add variable with sample number
+screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13")
+DF4$s_num=rep(NA,1,length(DF4$sample_name))  
+for(i in unique(screen_n)){
+  DF4$s_num[grep(i,DF4$sample_name)] = which(screen_n==i)-1
+}
+
+# For the ones with sample number = SD NAs where produce, as these are discharge samples, samplenumber would be the follow up to the last one
+DF4=DF4[order(DF4$sample_name),]
+DF4$s_num[which(is.na(DF4$s_num))] = DF4$s_num[which(is.na(DF4$s_num))-1]+1
+
 # Data detectability: set ratio to zero when Ct_mean of CTXm > 30 
 # my CV cutoff needs to 30% based on paper: doi:10.1016/j.clinbiochem.2006.12.014
 # remove all rows with ratio NA
@@ -194,14 +206,6 @@ DF5$patient_id = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
 
 # To make the ids comparable to the abx and clinical data
 DF5$patient_id = gsub("_","",DF5$patient_id)
-
-
-# Add variable with sample number
-screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13")
-DF5$s_num=rep(NA,1,length(DF5$sample_name))  
-for(i in unique(screen_n)){
-  DF5$s_num[grep(i,DF5$sample_name)] = which(screen_n==i)-1
-}
 
 DF6 = DF5
 
