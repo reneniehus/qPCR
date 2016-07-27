@@ -177,9 +177,17 @@ ab_matrix[,c(4,5)] = 0
 for(i in unique(abx$patient_id)){
   d = abx[abx$patient_id==i,]
   for(a in unique(d$Antibiotic.Name)){
+    a_rows = d[which(d$Antibiotic.Name==a),]
+    if(length(a_rows$StartTreatmentDate)>1){
+      dif_1 = c(0:(a_rows$EndTreatmentDate[1] - a_rows$StartTreatmentDate[1]))
+      dif_2 = c(0:(a_rows$EndTreatmentDate[2] - a_rows$StartTreatmentDate[2]))
+    treat = sort(c(a_rows$StartTreatmentDate[1]+dif_1,a_rows$StartTreatmentDate[2]+dif_2))
+    }
+    else{
+      treat = c(a_rows$StartTreatmentDate[1]+0:(a_rows$EndTreatmentDate[1] - a_rows$StartTreatmentDate[1]))
+    }
     b = ab_matrix$RectalDate[which(ab_matrix$patient_id==i)]
-    ab_matrix[which(ab_matrix$patient_id==i),which(names(ab_matrix)==a)] = ifelse(d$StartTreatmentDate[which(d$Antibiotic.Name==a)[1]]<=b&
-                                                                                    d$EndTreatmentDate[which(d$Antibiotic.Name==a)[1]]>=b,1,0)
+    ab_matrix[which(ab_matrix$patient_id==i),which(names(ab_matrix)==a)] = ifelse(b%in%treat,1,0)
   }
 }
 
@@ -239,3 +247,4 @@ i = ggplot(DF4_check[DF4_check$qu_ratio<1,], aes(x=RectalDate,y=as.numeric(qu_ra
 print(i)
 dev.off()
 
+write.csv(DF4)
