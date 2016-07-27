@@ -179,9 +179,12 @@ for(i in unique(abx$patient_id)){
   for(a in unique(d$Antibiotic.Name)){
     a_rows = d[which(d$Antibiotic.Name==a),]
     if(length(a_rows$StartTreatmentDate)>1){
-      dif_1 = c(0:(a_rows$EndTreatmentDate[1] - a_rows$StartTreatmentDate[1]))
-      dif_2 = c(0:(a_rows$EndTreatmentDate[2] - a_rows$StartTreatmentDate[2]))
-    treat = sort(c(a_rows$StartTreatmentDate[1]+dif_1,a_rows$StartTreatmentDate[2]+dif_2))
+      dif_t = NULL
+      for(p in 1:length(a_rows$StartTreatmentDate)){
+      dif = c(a_rows$StartTreatmentDate[p]+0:(a_rows$EndTreatmentDate[p] - a_rows$StartTreatmentDate[p]))
+      dif_t = append(dif_t,dif, after=length(dif_t))
+      }
+      treat = sort(dif_t)
     }
     else{
       treat = c(a_rows$StartTreatmentDate[1]+0:(a_rows$EndTreatmentDate[1] - a_rows$StartTreatmentDate[1]))
@@ -247,4 +250,4 @@ i = ggplot(DF4_check[DF4_check$qu_ratio<1,], aes(x=RectalDate,y=as.numeric(qu_ra
 print(i)
 dev.off()
 
-write.csv(DF4)
+write.csv(DF4,file="./linked_qPCR_clin_abx.csv")
