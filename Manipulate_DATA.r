@@ -215,11 +215,11 @@ ggplot(DF6, aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()
 # Patient IT_3294 is  one with ratio >100 (sample IT_3294_S1). This sample has been tested 3 times, which might suggest something strange happening. 
 # Also the 16s quantity is pretty low in this sample.
 length(DF6$qu_ratio[DF6$qu_ratio>1]) # 38 have a ratio > 1
-
+png(filename="./Figures/ctxm_per_patient.png", width=1200, height=1000)
 ggplot(DF6[DF6$qu_ratio<=100,], aes(x=s_num, y=as.numeric(qu_ratio), group=patient_id))+geom_point()+geom_line()+
   geom_errorbar(aes(ymin = qu_ratio - ratio_SD, ymax = qu_ratio + ratio_SD),
-                colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-0.1,1) + ylab("Abundance CTX-M relative to 16s")
-
+                colour = 'red', width = 0.4)+facet_wrap(~patient_id,ncol=10)+ylim(-0.1,15) + ylab("Abundance CTX-M relative to 16s")
+dev.off()
 # Interesting enough, most of the patients with a ratio >1 have a consistent ratio above. Would be interesting
 # to investigate these patients seperately
 
