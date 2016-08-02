@@ -8,8 +8,8 @@
 rm(list=ls())
 require(dplyr)
 
-setwd("~/Documents/RGNOSIS/qPCR/")
-
+setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
+setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
 # Load data files
 clin_main <- read.csv ("./Raw_data/Main Data.csv", sep= ",", colClasses=c("character")) # Main clinical data, one row per patient
@@ -253,4 +253,4 @@ i = ggplot(DF4_check[DF4_check$qu_ratio<1,], aes(x=RectalDate,y=as.numeric(qu_ra
 print(i)
 dev.off()
 
-write.csv(DF4,file="./linked_qPCR_clin_abx.csv")
+write.csv(DF4,file="./Cleaned_data/linked_qPCR_clin_abx.csv")

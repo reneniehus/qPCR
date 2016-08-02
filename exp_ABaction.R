@@ -98,10 +98,8 @@ id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and 
 
 doub.m = c(which(id.meas.a.p == 1), (which(id.meas.a.p == 1) + 1)) # 
 doub.m <- doub.m[order(doub.m)]
-# I find 6 double measures
+# After correcting Italian IT317, here S1 and S14 (!!) have same rectalDate 2011-05-02 
 DF1[doub.m,]
-# A description of the double measures
-# 1 Italian IT317, here S1 and S14 (!!) have same rectalDate 2011-05-02
 # 5 Romanian samples RM2199, RM2337, RM2654, RM3913, RM4083. 
 # Always timestamp 10 is double, where SD was taken. I suspect that at patient release (SD) 
 # an extra sample was taken. And then sometimes 3 days later a follow up??
