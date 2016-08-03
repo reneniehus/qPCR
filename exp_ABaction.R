@@ -41,7 +41,9 @@ SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
 
 # turn into numerical 
 SDATA <- SDATA %>% 
-  plyr::mutate(qu_ratio = as.numeric(qu_ratio),
+  plyr::mutate(
+         s_num = as.numeric(s_num),
+         qu_ratio = as.numeric(qu_ratio),
          esbl_act = as.numeric(esbl_act),
          broad_spec = as.numeric(broad_spec),
          Piperacillin.tazobactam = as.numeric(Piperacillin.tazobactam),
@@ -74,58 +76,65 @@ diffqu <- c(0,diffqu)
 # add diffqu to SDATA
 SDATA$diffqu <- diffqu
 
-
-###
+########
 # small table version of SDATA
 DF1 <- SDATA %>%
-  dplyr::select(s_num,patient_id,RectalDate,diffqu,qu_ratio,esbl_act)
-
-# CHECK if there are multiple measures from the same date
-id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient
-
-doub.m = c(which(id.meas.a.p == 1), (which(id.meas.a.p == 1) + 1)) # 
-doub.m <- doub.m[order(doub.m)]
-# After correcting Italian IT317, here S1 and S14 (!!) have same rectalDate 2011-05-02 
-DF1_dbls <- DF1[doub.m,]
-# 5 Romanian samples RM2199, RM2337, RM2654, RM3913, RM4083. 
-# Always timestamp 10 is double, where SD was taken. I suspect that at patient release (SD) 
-# an extra sample was taken. And then sometimes 3 days later a follow up??
-ddply(DF1_dbls, .(patient_id), summarise, mean=mean(qu_ratio),sigma=sd(qu_ratio),sigma/mean)
-
-DF1_dbls$qu_r_diff <- c(diff(DF1_dbls$qu_ratio),0)/DF1_dbls$qu_ratio
-DF1_dbls$zo <- rep(c(0,1),5)
-
-
-DF1[, ] # there are quite a few 
-  
+  dplyr::select(s_num,patient_id,RectalDate,diffqu,qu_ratio,esbl_act,broad_spec)
 
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
 
-# remove the first measument for each patient
-DF1 <- DF1 %>%
-  filter(!(DF1$cnt == 0))
+# CHECK if there are multiple measures from the same date
+id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient
+doub.m = c(which(id.meas.a.p == 1), (which(id.meas.a.p == 1) + 1)) # 
+doub.m <- doub.m[order(doub.m)]
+# After correcting s_num, no more doublicates on same date [before: IT317, RM2199, RM2337, RM2654, RM3913, RM4083]
 
-# get to the times between measurements in days
-DF1$PrevDate <- c("2011-1-1", DF1$RectalDate[1:(length(DF1$RectalDate) - 1)])
+# add num which always starts at 0
+DF1$num <- DF1$s_num
+DF1$num[1] <- 0
+for (i in 2:length(DF1$num)) {
+  if (DF1$patient_id[i] != DF1$patient_id[i - 1]) {
+    DF1$num[i] <- 0
+  } else {
+    DF1$num[i] <- DF1$num[i - 1] + 1 
+  }
+}
+# check that each patients num starts at 0
+#ddply(DF1, .(patient_id), summarise, MinNum=min(num))
 
-# reorder data frame
-DF1 <- DF1 %>%
-  select(cnt,patient_id,diffqu,esbl_act,RectalDate,PrevDate)
-
-#
-DF1$Tdiff <- as.Date(as.character(DF1$RectalDate), format="%Y-%m-%d") -
-  as.Date(as.character(DF1$PrevDate), format="%Y-%m-%d")
-
-DF1$Tdiff2 <- DF1$Tdiff
-
-for (i in 1:length(DF1$cnt)) {
-  if (DF1$cnt[i] == 1) {
+## Get days since first measurement
+# add a column with previous date
+DF1$PrevDate <- c(as.Date("2011-1-1"), DF1$RectalDate[1:(length(DF1$RectalDate) - 1)])
+DF1$Tdiff <- DF1$RectalDate - DF1$PrevDate
+# add up the differences in days
+for (i in 1:length(DF1$Tdiff)) {
+  if (DF1$num[i] == 0) {
     DF1$Tdiff[i] <- 0
   } else {
     DF1$Tdiff[i] <- DF1$Tdiff[i] + DF1$Tdiff[i - 1]
   }
 }
+# check that for each patient first measurement is at 0 days
+#ddply(DF1, .(patient_id), summarise, MinNum=min(Tdiff))
+
+
+
+
+
+#### FOR DIFFQU: remove first measument for each patient, because 
+DF1 <- DF1 %>%
+  dplyr::filter(!(DF1$s_num == 0))
+
+
+
+# reorder data frame
+DF1 <- DF1 %>%
+  select(cnt,patient_id,diffqu,esbl_act,RectalDate,PrevDate)
+
+DF1$Tdiff2 <- DF1$Tdiff
+
+
 
 
 
