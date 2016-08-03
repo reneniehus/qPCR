@@ -7,9 +7,10 @@
 
 # clear workspace, load libraries
 rm(list=ls())
+library(plyr)
 library(dplyr)
 library(reshape)
-library(plyr)
+
 
 # set the working directory
 setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/")
@@ -40,7 +41,7 @@ SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
 
 # turn into numerical 
 SDATA <- SDATA %>% 
-  mutate(qu_ratio = as.numeric(qu_ratio),
+  plyr::mutate(qu_ratio = as.numeric(qu_ratio),
          esbl_act = as.numeric(esbl_act),
          broad_spec = as.numeric(broad_spec),
          Piperacillin.tazobactam = as.numeric(Piperacillin.tazobactam),
@@ -60,7 +61,7 @@ SDATA <- SDATA %>%
 
 # turn into dates
 SDATA <- SDATA %>%
-  mutate(RectalDate = as.Date(as.character(SDATA$RectalDate), format="%Y-%m-%d"))
+  plyr::mutate(RectalDate = as.Date(as.character(SDATA$RectalDate), format="%Y-%m-%d"))
 
 # order after rectal data FOR EACH patient
 SDATA <- SDATA[order(SDATA$patient_id, SDATA$RectalDate),]
@@ -73,28 +74,11 @@ diffqu <- c(0,diffqu)
 # add diffqu to SDATA
 SDATA$diffqu <- diffqu
 
-# create numbers in order to remove the first samples
-# create a counter for the samples from each patient, to identify first sample
-cnt <- SDATA$patient_id[2:length(SDATA$patient_id)] ==
-  SDATA$patient_id[1:(length(SDATA$patient_id)-1)]
-cnt[cnt == "TRUE"] <- 1 # convert the counter to 0 and 1
-cnt <- c(0, cnt) # add 0 for first element because this is first timepoint for the patient
-
-# create new counter 0, 1, ..., sample_n of the same length
-cntN <- vector(mode="numeric", length=length(cnt))
-for (i in 1:length(cnt)){
-  if (cnt[i] == 0){
-    cntN[i] <- 0
-  } else {
-    cntN[i] <- cntN[i - 1] + 1
-  }
-}
-SDATA$cnt <- cntN
 
 ###
 # small table version of SDATA
 DF1 <- SDATA %>%
-  select(cnt,s_num,patient_id,RectalDate,diffqu,qu_ratio,esbl_act)
+  dplyr::select(s_num,patient_id,RectalDate,diffqu,qu_ratio,esbl_act)
 
 # CHECK if there are multiple measures from the same date
 id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient

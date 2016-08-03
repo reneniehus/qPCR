@@ -148,7 +148,7 @@ DF4$ratio_CV <- sqrt(DF4$qu_CV_CTX^2 + DF4$qu_CV_16s^2 + 3*DF4$qu_CV_16s^2*DF4$q
 #
 
 # Add variable with sample number
-screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13")
+screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14")
 DF4$s_num=rep(NA,1,length(DF4$sample_name))  
 for(i in unique(screen_n)){
   DF4$s_num[grep(i,DF4$sample_name)] = which(screen_n==i)-1

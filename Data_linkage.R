@@ -82,9 +82,6 @@ length(unique(lab_main$patient_id));length(unique(lab_main$PatientStudyID))
 # Create abx patient ID variable
 abx$patient_id = paste0(abx$Country.Code,abx$Patient.ID)
 
-# pcr correct s_num value for patient IT317 [sample S14 should have s_num=14]
-pcr$s_num[pcr$sample_name == "IT_317_S14"] <- 14
-
 # pcr remove =D
 pcr$sample_name2 = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",pcr$sample_name)
 pcr$sample_name2 = paste0(pcr$sample_name2,"_S",pcr$s_num)
