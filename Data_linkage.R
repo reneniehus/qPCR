@@ -8,7 +8,7 @@
 rm(list=ls())
 require(dplyr)
 
-setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
+#setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
 setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
 # Load data files

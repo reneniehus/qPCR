@@ -5,10 +5,12 @@
 # Author: Rene Niehus with contributions of Esther van Kleef
 # Date: 28 June 2016 
 
-setwd("~/Documents/RGNOSIS/qPCR/")
+#setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
+setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
 rm(list=ls())
 # load those libraries
+library(plyr)
 library(dplyr)
 library(car)
 library(tidyr)
@@ -30,9 +32,9 @@ names(DF) <- tolower(names(DF))
 # Create DF2: only samples, no control samples, turn factor into character or numeric, adjust hyphones in sample names 
 DF2 <- DF %>% 
   dplyr::select(-pcr_type) %>%
-  filter(class == "UNKNOWN",
+  dplyr::filter(class == "UNKNOWN",
          !(sample_name %in% c("quantity control sample","quantity control Rm1299"))) %>%
-  mutate(sample_name=as.character(sample_name),
+  dplyr::mutate(sample_name=as.character(sample_name),
          sample_name=toupper(sample_name),
          sample_name=gsub('-','_',sample_name),
          type=as.character(type),
@@ -94,7 +96,7 @@ DF2$quantity_adj[grep("1:10", DF2$sample_name)] = DF2$quantity[grep("1:10", DF2$
 DF2$quantity_adj[grep("1:100", DF2$sample_name)] = DF2$quantity[grep("1:100", DF2$sample_name)]*100
 
 # Which samples have been re-run
-too_many_samp = (DF2 %>% group_by(sample_name, type) %>% summarise(reps = n()) %>% filter(reps>3))
+too_many_samp = (DF2 %>% group_by(sample_name, type) %>% dplyr::summarise(reps = n()) %>% filter(reps>3))
 #View(DF2[DF2$sample_name%in%too_many_samp$sample_name,])
 
 DF_test = DF2 %>%
@@ -113,7 +115,7 @@ length(unique(DF2$sample_name))
 DF3 <- DF2 %>%
   dplyr::select(-ct_mean, -ct_sd, -quantity_mean, - quantity_sd, -class) %>%
   group_by(sample_name, type) %>%
-  summarise(ct_mean2=mean(ct,na.rm=TRUE),ct_sd2=sd(ct,na.rm=TRUE),qu_mean2=mean(quantity_adj,na.rm=TRUE),qu_sd2=sd(quantity_adj,na.rm=TRUE),
+  dplyr::summarise(ct_mean2=mean(ct,na.rm=TRUE),ct_sd2=sd(ct,na.rm=TRUE),qu_mean2=mean(quantity_adj,na.rm=TRUE),qu_sd2=sd(quantity_adj,na.rm=TRUE),
             qu_CV=sd(quantity_adj,na.rm=TRUE)/mean(quantity_adj,na.rm=TRUE), reps =n() ) %>%
   ungroup()
 
@@ -145,17 +147,12 @@ DF4$ratio_SD <- (DF4$qu_mean_CTX/DF4$qu_mean_16s)*(sqrt(DF4$qu_CV_CTX^2 + DF4$qu
 DF4$ratio_CV <- sqrt(DF4$qu_CV_CTX^2 + DF4$qu_CV_16s^2 + 3*DF4$qu_CV_16s^2*DF4$qu_CV_CTX^2 + 8*DF4$qu_CV_16s^4)/(1 + DF4$qu_CV_16s^2)
 #
 
-
 # Add variable with sample number
 screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13")
 DF4$s_num=rep(NA,1,length(DF4$sample_name))  
 for(i in unique(screen_n)){
   DF4$s_num[grep(i,DF4$sample_name)] = which(screen_n==i)-1
 }
-
-# For the ones with sample number = SD NAs where produce, as these are discharge samples, samplenumber would be the follow up to the last one
-DF4=DF4[order(DF4$sample_name),]
-DF4$s_num[which(is.na(DF4$s_num))] = DF4$s_num[which(is.na(DF4$s_num))-1]+1
 
 # Data detectability: set ratio to zero when Ct_mean of CTXm > 30 
 # my CV cutoff needs to 30% based on paper: doi:10.1016/j.clinbiochem.2006.12.014
@@ -202,11 +199,18 @@ lines(density(rtnorm(10000,mean = tn_ctx$estimate[[1]], sd = tn_ctx$estimate[[2]
 DF5 <- DF5 %>%
   filter(!is.na(qu_ratio))
 
+# remove the sample tag from sample name
 DF5$patient_id = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",DF5$sample_name)
 
 # To make the ids comparable to the abx and clinical data
 DF5$patient_id = gsub("_","",DF5$patient_id)
 
+# Order after s_num for each patient data-set
+DF5 <- DF5[order(DF5$patient_id, DF5$s_num),]
+# For discharge samples [SD] s_num is NA, so sample number will follow up last sample
+DF5$s_num[which(is.na(DF5$s_num))] = DF5$s_num[which(is.na(DF5$s_num))-1]+1
+
+# new data frame
 DF6 = DF5
 
 # Check for strange outliers

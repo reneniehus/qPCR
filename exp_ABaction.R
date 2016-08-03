@@ -8,6 +8,8 @@
 # clear workspace, load libraries
 rm(list=ls())
 library(dplyr)
+library(reshape)
+library(plyr)
 
 # set the working directory
 setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/")
@@ -30,6 +32,7 @@ Comp <- function(data)
   }
   return(output)
 }
+
 
 # Load Data file
 SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
@@ -99,11 +102,14 @@ id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and 
 doub.m = c(which(id.meas.a.p == 1), (which(id.meas.a.p == 1) + 1)) # 
 doub.m <- doub.m[order(doub.m)]
 # After correcting Italian IT317, here S1 and S14 (!!) have same rectalDate 2011-05-02 
-DF1[doub.m,]
+DF1_dbls <- DF1[doub.m,]
 # 5 Romanian samples RM2199, RM2337, RM2654, RM3913, RM4083. 
 # Always timestamp 10 is double, where SD was taken. I suspect that at patient release (SD) 
 # an extra sample was taken. And then sometimes 3 days later a follow up??
-# Check raw data 
+ddply(DF1_dbls, .(patient_id), summarise, mean=mean(qu_ratio),sigma=sd(qu_ratio),sigma/mean)
+
+DF1_dbls$qu_r_diff <- c(diff(DF1_dbls$qu_ratio),0)/DF1_dbls$qu_ratio
+DF1_dbls$zo <- rep(c(0,1),5)
 
 
 DF1[, ] # there are quite a few 
