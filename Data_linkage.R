@@ -8,6 +8,7 @@
 rm(list=ls())
 require(dplyr)
 
+# set working directory
 #setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
 setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
@@ -28,20 +29,18 @@ lab_fu$s_num_clean = as.numeric(lab_fu$ScreeningNumber)-1
 lab_fu$ESBL.16S <- gsub("%", "", lab_fu$ESBL.16S)
 lab_fu$patient_id <- paste0(lab_fu$Country.Code,lab_fu$Patient..ID)
 
-# Creat sample ID in dates_PCR
+# Create sample ID in dates_PCR
 dates_pcr$sample = paste0(dates_pcr$Country,"_",dates_pcr$patient_id_num,"_",dates_pcr$S_num)
 dates_pcr$patient_id = paste0(dates_pcr$Country,dates_pcr$patient_id_num)
 
-
+# Create s_num_clean from the sample names
 screen_n = c("S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14")
-dates_pcr$s_num_clean=rep(NA,1,length(dates_pcr$sample))  
+dates_pcr$s_num_clean=rep(NA,1,length(dates_pcr$sample)) # initiate dates_pcr
 for(i in unique(screen_n)){
   dates_pcr$s_num_clean[grep(i,dates_pcr$sample)] = which(screen_n==i)-1
 }
-
 # For the ones with sample number = SD NAs where produce, as these are discharge samples, samplenumber would be the follow up to the last one
 dates_pcr$s_num_clean[which(is.na(dates_pcr$s_num_clean))] = dates_pcr$s_num_clean[which(is.na(dates_pcr$s_num_clean))-1]+1
-
 
 # Clean Patient ID variable clin_main
 clin_main$CountryCode_full = ifelse(clin_main$CountryCode == 1,"NA",
@@ -82,7 +81,7 @@ length(unique(lab_main$patient_id));length(unique(lab_main$PatientStudyID))
 # Create abx patient ID variable
 abx$patient_id = paste0(abx$Country.Code,abx$Patient.ID)
 
-# pcr remove =D
+# In pcr remove =D
 pcr$sample_name2 = gsub("_S[D, 1,2,3,4,5,6,7,8,9,10, =D ]*","",pcr$sample_name)
 pcr$sample_name2 = paste0(pcr$sample_name2,"_S",pcr$s_num)
 #################################
@@ -94,14 +93,12 @@ DF = merge(pcr,dates_pcr[,which(names(dates_pcr)%in%c("patient_id","s_num_clean"
 # Check merge
 length(DF$RectalDate[is.na(DF$RectalDate)])
 
-
 # Merge pcr data with lab_fu 
 length(unique(lab_fu$sample));length(unique(pcr$sample_name))
 length(pcr$sample_name[which(!pcr$sample_name %in%unique(lab_fu$sample) )])# 129 samples not in the lab_follow up dates
 pcr$sample_mis = ifelse(!pcr$sample_name %in%unique(lab_fu$sample),1,0)
 
 length(unique(pcr$patient_id[which(!pcr$patient_id %in%unique(lab_fu$patient_id))])) # 11 unique patients not in the lab_fu data
-
 
 # Check which variables of relevance
 sapply(lab_fu, function(x) unique(x))
@@ -222,6 +219,46 @@ DF4 <- DF4 %>%
 
 # I've left the abx fields for the patient that presumably haven't taken abx at all (i.e. were not present in the abx data file) is NA, as I suppose we're not 
 # certain whether their usage is missing or really no abx was taken
+
+# sort patient samples per patient after Rectal date
+DF4 <- DF4[order(DF4$patient_id, DF4$RectalDate),]
+
+# add num which always starts at 0
+DF4$num <- DF4$s_num
+DF4$num[1] <- 0
+for (i in 2:length(DF4$num)) {
+  if (DF4$patient_id[i] != DF4$patient_id[i - 1]) {
+    DF4$num[i] <- 0
+  } else {
+    DF4$num[i] <- DF4$num[i - 1] + 1 
+  }
+}
+# check that each patients num starts at 0
+#ddply(DF4, .(patient_id), summarise, MinNum=min(num))
+
+## Get days since first measurement
+# add a column with previous date
+prev.date <- c(as.Date("2011-1-1"), DF4$RectalDate[1:(length(DF4$RectalDate) - 1)])
+DF4$Tdiff <- DF4$RectalDate - prev.date
+# add up the differences in days
+for (i in 1:length(DF4$Tdiff)) {
+  if (DF4$num[i] == 0) {
+    DF4$Tdiff[i] <- 0
+  } else {
+    DF4$Tdiff[i] <- DF4$Tdiff[i] + DF4$Tdiff[i - 1]
+  }
+}
+# check that for each patient first measurement is at 0 days
+#ddply(DF4, .(patient_id), summarise, MinDays=min(Tdiff), MaxDays=max(Tdiff))
+
+# calculate between measurement differences in the qu_ratio (first measure per patient will become meaningless)
+diff.qu <- DF4$qu_ratio[2 : nrow(DF4)] - DF4$qu_ratio[1 : (nrow(DF4) - 1)]
+diff.qu <- c(0,diff.qu)
+# set diff.qu for first measurement to NA
+diff.qu[DF4$num == 0] <- NA
+
+# add diffqu to DF
+DF4$DiffRatio <- diff.qu
 
 DF4_check = merge(DF4, abx,by.x=c("patient_id"), by.y=c("patient_id"))
 

@@ -67,14 +67,6 @@ SDATA <- SDATA %>%
 # order after rectal data FOR EACH patient
 SDATA <- SDATA[order(SDATA$patient_id, SDATA$RectalDate),]
 
-# calculate differences in the qu_ratio (first measure per patient will become meaningless)
-diffqu <- SDATA$qu_ratio[2 : length(SDATA$sample_name)] - 
-  SDATA$qu_ratio[1 : (length(SDATA$sample_name) - 1)]
-diffqu <- c(0,diffqu)
-
-# add diffqu to SDATA
-SDATA$diffqu <- diffqu
-
 ######## Some Descriptive analysis
 dim(SDATA)[1:2] # 659 observations, 127 variables
 head(SDATA, n = -657) # negative n means the length of cut-off tail
@@ -86,7 +78,6 @@ summary(SDATA$qu_ratio) # gives a summery of a coloumn
 # how accurate are small values of the ratio. Look at the error
 summary(SDATA$ratio_SD) # gives a summery of a coloumn
 # the SD of the ratio is around 1% of 
-
 
 ########
 # small table version of SDATA
