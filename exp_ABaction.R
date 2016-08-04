@@ -118,8 +118,7 @@ for (i in 1:length(DF1$Tdiff)) {
 # check that for each patient first measurement is at 0 days
 #ddply(DF1, .(patient_id), summarise, MinNum=min(Tdiff))
 
-
-
+# add a comment
 
 
 #### FOR DIFFQU: remove first measument for each patient, because 
