@@ -11,7 +11,6 @@ library(plyr)
 library(dplyr)
 library(reshape)
 
-
 # set the working directory
 setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/")
 
@@ -34,7 +33,6 @@ Comp <- function(data)
   return(output)
 }
 
-
 # Load Data file
 SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
                    sep= ",", colClasses=c("character")) # Linked Data
@@ -42,6 +40,7 @@ SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
 # turn into numerical 
 SDATA <- SDATA %>% 
   plyr::mutate(
+         ratio_SD = as.numeric(ratio_SD),
          s_num = as.numeric(s_num),
          qu_ratio = as.numeric(qu_ratio),
          esbl_act = as.numeric(esbl_act),
@@ -75,6 +74,19 @@ diffqu <- c(0,diffqu)
 
 # add diffqu to SDATA
 SDATA$diffqu <- diffqu
+
+######## Some Descriptive analysis
+dim(SDATA)[1:2] # 659 observations, 127 variables
+head(SDATA, n = -657) # negative n means the length of cut-off tail
+names(SDATA) # gives a nice list of a the variables
+str(SDATA) # gives a summary like in the global environemnt
+levels(SDATA$patient_id) # this is only for categorical data
+summary(SDATA$qu_ratio) # gives a summery of a coloumn
+# the median is 0.0077: majority of measures are close to zero. I expect that this ratio is mostly very small. 
+# how accurate are small values of the ratio. Look at the error
+summary(SDATA$ratio_SD) # gives a summery of a coloumn
+# the SD of the ratio is around 1% of 
+
 
 ########
 # small table version of SDATA
