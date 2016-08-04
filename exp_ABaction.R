@@ -88,25 +88,45 @@ dev.off()
 
 ########
 # small table version of SDATA
+#names(SDATA)[90:126] # those are all the antibiotics in action
 DF1 <- SDATA %>%
-  dplyr::select(num,qu_ratio,Tdiff,RectalDate,esbl_act,broad_spec)
+  dplyr::select(num,qu_ratio,Tdiff,RectalDate,esbl_act,broad_spec,
+                Piperacillin.tazobactam,Vancomycin,isoniazid,Levofloxacin,
+                Meropenem,pyrazinamide,Rifampicin,Ampicillin,Oxacillin,
+                Ceftriaxone,Ceftazidime)
 
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
 
-# add the previous qu_ratio as predictor
-DF1$PrevQuRatio = c(0, DF1$qu_ratio[1 : (nrow(DF1) - 1)])
-
 # add the time since last measurement as predictor
 # add a column with previous date
-prev.date <- c(as.Date("2011-1-1"), DF1$RectalDate[1:(length(DF1$RectalDate) - 1)])
-DF1$Tdiff <- DF1$RectalDate - prev.date
+next.date <- c(DF1$RectalDate[2:(length(DF1$RectalDate))] , as.Date("2011-1-1"))
+DF1$TdiffToNext <- next.date - DF1$RectalDate
+
+# the next qu_ratio is what i want to predict
+DF1$NextQuRatio = c(DF1$qu_ratio[2 : (nrow(DF1))], 0 )
+
+# 
+first.meas = which(DF1$num == 0)
+first.meas <- first.meas[2 : length(first.meas)] - 1
 
 # Filter away first measurements
-DF2 <- DF1 %>% dplyr::filter(num != 0)
+DF2 <- DF1[-first.meas,]
 
 # Make new DF for regression
-DF3 <- DF2
+DF3 <- DF2 %>% dplyr::select(num,qu_ratio,esbl_act,broad_spec,
+                             Piperacillin.tazobactam,Vancomycin,isoniazid,Levofloxacin,
+                             Meropenem,pyrazinamide,Rifampicin,Ampicillin,Oxacillin,
+                             Ceftriaxone,Ceftazidime,
+                             TdiffToNext,NextQuRatio)
+
+### Now perform different regressions
+# Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec
+
+# Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec, TdiffToNext
+
+
+
 
 # CHECK if there are multiple measures from the same date
 id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient
