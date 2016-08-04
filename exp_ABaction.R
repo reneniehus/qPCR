@@ -78,14 +78,35 @@ summary(SDATA$qu_ratio) # gives a summery of a coloumn
 # how accurate are small values of the ratio. Look at the error
 summary(SDATA$ratio_SD) # gives a summery of a coloumn
 # the SD of the ratio is around 1% of 
+mean.quratio = mean(SDATA$qu_ratio, na.rm = T) # calculate the mean
+max.quratio = max(SDATA$qu_ratio, na.rm = T) # calculate the mean
+# make a histogram and density plot
+png('./Figures/histogram and kernel density plot.png')
+hist(SDATA$qu_ratio, breaks = 5, freq = F, xlab = 'CTXm-16s ratio', xlim = c(0,20), ylim = c(0, 1), ylab = 'Probability', main = 'Histogram of CTXm abundance with Kernel Density Plot')
+lines(density(SDATA$qu_ratio, na.rm = T, from = 0, to = max.quratio))
+dev.off()
 
 ########
 # small table version of SDATA
 DF1 <- SDATA %>%
-  dplyr::select(s_num,patient_id,RectalDate,diffqu,qu_ratio,esbl_act,broad_spec)
+  dplyr::select(num,qu_ratio,Tdiff,RectalDate,esbl_act,broad_spec)
 
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
+
+# add the previous qu_ratio as predictor
+DF1$PrevQuRatio = c(0, DF1$qu_ratio[1 : (nrow(DF1) - 1)])
+
+# add the time since last measurement as predictor
+# add a column with previous date
+prev.date <- c(as.Date("2011-1-1"), DF1$RectalDate[1:(length(DF1$RectalDate) - 1)])
+DF1$Tdiff <- DF1$RectalDate - prev.date
+
+# Filter away first measurements
+DF2 <- DF1 %>% dplyr::filter(num != 0)
+
+# Make new DF for regression
+DF3 <- DF2
 
 # CHECK if there are multiple measures from the same date
 id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient
@@ -105,23 +126,6 @@ for (i in 2:length(DF1$num)) {
 }
 # check that each patients num starts at 0
 #ddply(DF1, .(patient_id), summarise, MinNum=min(num))
-
-## Get days since first measurement
-# add a column with previous date
-DF1$PrevDate <- c(as.Date("2011-1-1"), DF1$RectalDate[1:(length(DF1$RectalDate) - 1)])
-DF1$Tdiff <- DF1$RectalDate - DF1$PrevDate
-# add up the differences in days
-for (i in 1:length(DF1$Tdiff)) {
-  if (DF1$num[i] == 0) {
-    DF1$Tdiff[i] <- 0
-  } else {
-    DF1$Tdiff[i] <- DF1$Tdiff[i] + DF1$Tdiff[i - 1]
-  }
-}
-# check that for each patient first measurement is at 0 days
-#ddply(DF1, .(patient_id), summarise, MinNum=min(Tdiff))
-
-# add a comment
 
 
 #### FOR DIFFQU: remove first measument for each patient, because 
