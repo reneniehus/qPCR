@@ -10,7 +10,6 @@ setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
 rm(list=ls())
 # load those libraries
-library(plyr)
 library(dplyr)
 library(car)
 library(tidyr)
@@ -96,7 +95,7 @@ DF2$quantity_adj[grep("1:10", DF2$sample_name)] = DF2$quantity[grep("1:10", DF2$
 DF2$quantity_adj[grep("1:100", DF2$sample_name)] = DF2$quantity[grep("1:100", DF2$sample_name)]*100
 
 # Which samples have been re-run
-too_many_samp = (DF2 %>% group_by(sample_name, type) %>% dplyr::summarise(reps = n()) %>% filter(reps>3))
+too_many_samp = (DF2 %>% group_by(sample_name, type) %>% summarise(reps = n()) %>% filter(reps>3))
 #View(DF2[DF2$sample_name%in%too_many_samp$sample_name,])
 
 DF_test = DF2 %>%

@@ -7,7 +7,6 @@
 
 # clear workspace, load libraries
 rm(list=ls())
-library(plyr)
 library(dplyr)
 library(reshape)
 
@@ -98,6 +97,10 @@ DF1 <- SDATA %>%
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
 
+# remove the qu_ratio over 100
+DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
+DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
+
 # add the time since last measurement as predictor
 # add a column with previous date
 next.date <- c(DF1$RectalDate[2:(length(DF1$RectalDate))] , as.Date("2011-1-1"))
@@ -122,168 +125,44 @@ DF3 <- DF2 %>% dplyr::select(num,qu_ratio,esbl_act,broad_spec,
 
 ### Now perform different regressions
 # Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec
+DF_R1 <-  DF3 %>% dplyr::select(num,qu_ratio,broad_spec,NextQuRatio)
+
+# Fit the NextQuRatio using the previous and broad_spec
+fit.1 <- lm(DF_R1$NextQuRatio ~ DF_R1$broad_spec + DF_R1$qu_ratio)
+fit.1
+# graphical display
+colors <- ifelse(DF_R1$broad_spec==1, "black", "gray")
+plot(DF_R1$qu_ratio, DF_R1$NextQuRatio, xlab="Previous QuRatio", ylab="Next Qu",
+     col=colors, pch=20)
+curve(cbind(1, 1, x) %*% coef(fit.1), add=TRUE, col="black")
+curve(cbind(1, 0,x) %*% coef(fit.1), add=TRUE, col="gray")
+
+# Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec
+DF_R2 <-  DF3 %>% dplyr::select(qu_ratio,esbl_act,NextQuRatio)
+
+# Fit the NextQuRatio using the previous and broad_spec
+fit.2 <- lm(DF_R2$NextQuRatio ~ DF_R2$esbl_act + DF_R2$qu_ratio)
+fit.2
+# graphical display
+colors <- ifelse(DF_R2$esbl_act==2, "black", "gray")
+plot(DF_R2$qu_ratio, DF_R2$NextQuRatio, xlab="Previous QuRatio", ylab="Next Qu",
+     col=colors, pch=20)
+curve(cbind(1, 1, x) %*% coef(fit.2), add=TRUE, col="black")
+curve(cbind(1, 0,x) %*% coef(fit.2), add=TRUE, col="gray")
+
+# allow for interactions: important because we expect 2nd variable to only be effective at non-zero esbl!
+fit.3 <- lm(DF_R1$NextQuRatio ~ DF_R1$broad_spec + DF_R1$qu_ratio + DF_R1$broad_spec:DF_R1$qu_ratio)
+fit.3
+# graphical display
+colors <- ifelse(DF_R1$broad_spec==1, "black", "gray")
+plot(DF_R1$qu_ratio, DF_R1$NextQuRatio, xlab="Previous QuRatio", ylab="Next Qu",
+     col=colors, pch=20)
+curve(cbind(1, 1, x, 1*x) %*% coef(fit.3), add=TRUE, col="black")
+curve(cbind(1, 0,x, 0*x) %*% coef(fit.3), add=TRUE, col="gray")
 
 # Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec, TdiffToNext
 
+### play around with data cleaning
+SDATA
 
 
-
-# CHECK if there are multiple measures from the same date
-id.meas.a.p = Comp(DF1$s_num)*Comp(DF1$patient_id) # idential measure point and patient
-doub.m = c(which(id.meas.a.p == 1), (which(id.meas.a.p == 1) + 1)) # 
-doub.m <- doub.m[order(doub.m)]
-# After correcting s_num, no more doublicates on same date [before: IT317, RM2199, RM2337, RM2654, RM3913, RM4083]
-
-# add num which always starts at 0
-DF1$num <- DF1$s_num
-DF1$num[1] <- 0
-for (i in 2:length(DF1$num)) {
-  if (DF1$patient_id[i] != DF1$patient_id[i - 1]) {
-    DF1$num[i] <- 0
-  } else {
-    DF1$num[i] <- DF1$num[i - 1] + 1 
-  }
-}
-# check that each patients num starts at 0
-#ddply(DF1, .(patient_id), summarise, MinNum=min(num))
-
-
-#### FOR DIFFQU: remove first measument for each patient, because 
-DF1 <- DF1 %>%
-  dplyr::filter(!(DF1$s_num == 0))
-
-
-
-# reorder data frame
-DF1 <- DF1 %>%
-  select(cnt,patient_id,diffqu,esbl_act,RectalDate,PrevDate)
-
-DF1$Tdiff2 <- DF1$Tdiff
-
-
-
-
-
-# make diffqu into -1 0 and +1
-DFdiff <- DF1 %>%
-  select(diffqu) # make a new table DFdiff that contains the steps to simplify
-
-# select where to make cut-off for no change in CTX-m abundance
-summary_of_quDiff = summary(DFdiff$diffqu)
-small_vals = (-0.02 <= DFdiff$diffqu & DFdiff$diffqu <= 0.02) # introduce small value-variable
-
-DFdiff$qu3groups <- DFdiff$diffqu # make a simple version of qu_diff
-DFdiff$qu3groups[small_vals] <- 0
-## 1: increase -1:decrease 0: stays
-DFdiff$qu3groups[DFdiff$qu3groups > 0] <- 1
-DFdiff$qu3groups[DFdiff$qu3groups < 0] <- -1
-
-# add the simple version od qu_diff to DF1
-DF1$qu3groups <- DFdiff$qu3groups
-
-# fit a model using esbl active and broad spec as X variables
-model1 <- lm(DF1$qu3groups ~ DF1$esbl_act + DF1$broad_spec)
-summary(model1)
-
-# calculate the Pear
-cor(DF1$esbl_act, DF1$broad_spec, method="pearson")
-
-# conf intervals for model coefficients
-confint(model1, conf.level = 0.95)
-
-### Model using all X variables
-# small table version of SDATA
-DF2 <- SDATA %>%
-  select(cnt,patient_id,sample_name,diffqu,esbl_act,broad_spec,
-         Piperacillin.tazobactam,Vancomycin,isoniazid,Levofloxacin,
-         Meropenem,pyrazinamide,Rifampicin,Ampicillin,Oxacillin,
-         Ceftriaxone)
-
-# replace all NA by 0
-DF2[is.na(DF2)] <- 0
-
-# make treaments numeric
-
-# remove the first measument for each patient
-DF2 <- DF2 %>%
-  filter(!(DF2$cnt == 1))
-
-# make diffqu into -1 0 and +1
-DFdiff <- DF2 %>%
-  select(diffqu) # make a new table DFdiff that contains the steps to simplify
-
-# select where to make cut-off for no change in CTX-m abundance
-summary_of_quDiff = summary(DFdiff$diffqu)
-small_vals = (-0.02 <= DFdiff$diffqu & DFdiff$diffqu <= 0.02) # introduce small value-variable
-
-DFdiff$qu3groups <- DFdiff$diffqu # make a simple version of qu_diff
-DFdiff$qu3groups[small_vals] <- 0
-## 1: increase -1:decrease 0: stays
-DFdiff$qu3groups[DFdiff$qu3groups > 0] <- 1
-DFdiff$qu3groups[DFdiff$qu3groups < 0] <- -1
-
-# add the simple version od qu_diff to DF2
-DF2$qu3groups <- DFdiff$qu3groups
-
-# fit a model using esbl active and broad spec as X variables
-model2 <- lm(DF2$qu3groups ~ DF2$broad_spec +
-               DF2$Piperacillin.tazobactam + DF2$Vancomycin +
-               DF2$Levofloxacin + DF2$Meropenem +
-               DF2$Rifampicin + DF2$Ampicillin +
-               DF2$Oxacillin + DF2$Ceftriaxone)
-summary(model2)
-
-# calculate the Pearson correlation
-cor(DF1$esbl_act, DF1$broad_spec, method="pearson")
-
-# conf intervals for model coefficients
-confint(model1, conf.level = 0.95)
-
-
-### Model using all X variables and stratify
-# small table version of SDATA
-DF3 <- SDATA %>%
-  select(ESBL_Ecoli,ESBL_KESC,ESBL_PPM,cnt,patient_id,sample_name,diffqu,esbl_act,broad_spec,
-         Piperacillin.tazobactam,Vancomycin,isoniazid,Levofloxacin,
-         Meropenem,pyrazinamide,Rifampicin,Ampicillin,Oxacillin,
-         Ceftriaxone)
-
-# make treaments numeric
-
-# replace all NA by 0
-DF3[is.na(DF3)] <- 0
-
-# remove the first measument for each patient
-DF3 <- DF3 %>%
-  filter(!(DF3$cnt == 1))
-
-# make diffqu into -1 0 and +1
-DFdiff <- DF3 %>%
-  select(diffqu) # make a new table DFdiff that contains the steps to simplify
-
-# select where to make cut-off for no change in CTX-m abundance
-summary_of_quDiff = summary(DFdiff$diffqu)
-small_vals = (-0.02 <= DFdiff$diffqu & DFdiff$diffqu <= 0.02) # introduce small value-variable
-
-DFdiff$qu3groups <- DFdiff$diffqu # make a simple version of qu_diff
-DFdiff$qu3groups[small_vals] <- 0
-## 1: increase -1:decrease 0: stays
-DFdiff$qu3groups[DFdiff$qu3groups > 0] <- 1
-DFdiff$qu3groups[DFdiff$qu3groups < 0] <- -1
-
-# add the simple version od qu_diff to DF2
-DF3$qu3groups <- DFdiff$qu3groups
-
-# fit a model using esbl active and broad spec as X variables
-model3 <- lm(DF3$qu3groups ~ DF3$broad_spec +
-               DF3$Piperacillin.tazobactam + DF3$Vancomycin +
-               DF3$Levofloxacin + DF3$Meropenem +
-               DF3$Rifampicin + DF3$Ampicillin +
-               DF3$Oxacillin + DF3$Ceftriaxone)
-summary(model3)
-
-# calculate the Pearson correlation
-cor(DF1$esbl_act, DF1$broad_spec, method="pearson")
-
-# conf intervals for model coefficients
-confint(model1, conf.level = 0.95)

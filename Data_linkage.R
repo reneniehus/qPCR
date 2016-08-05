@@ -7,6 +7,7 @@
 
 rm(list=ls())
 require(dplyr)
+library(ggplot2);
 
 # set working directory
 #setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
@@ -105,6 +106,9 @@ sapply(lab_fu, function(x) unique(x))
 sapply(lab_fu, function(x) length(x[x==""]))
 
 DF = merge(DF, lab_fu[,-c(4,15:45)], by.x=c("s_num","patient_id"), by.y=c("s_num_clean","patient_id"),all.x = T)
+
+# convert qu_ratio to numeric
+DF <- DF %>% mutate(qu_ratio = as.numeric(qu_ratio))
 
 length(unique(lab_fu$sample)) # Duplicates present in the lab_fu file, therefore multiple merges
 #View(lab_fu[lab_fu$sample%in%unique(lab_fu$sample[which(duplicated(lab_fu$sample))]),])
@@ -286,5 +290,20 @@ i = ggplot(DF4_check[DF4_check$qu_ratio<1,], aes(x=RectalDate,y=as.numeric(qu_ra
   facet_wrap(~patient_id, scales="free_x",ncol=10)+ylab("% abundance ESBL to 16s")+ylim(-2,1)
 print(i)
 dev.off()
+
+DF_plot <- DF4_check[DF4_check$qu_ratio<1,]
+png(filename="./Figures/ratio_with_abx_below1only_broadSpec.png", width=3000, height=2400)
+i = ggplot(DF_plot, aes(x=RectalDate, y=qu_ratio, group=patient_id)) + 
+  geom_line(size=1) + geom_point(size=1) + geom_hline(yintercept=0,linetype=2) +
+  geom_segment(aes(x = StartTreatmentDate, y = -0.5, xend = EndTreatmentDate, yend = -0.5, size=0.5, colour = as.character(broad_spec)),data=DF_plot[DF_plot$broad_spec==1,]) + 
+  geom_segment(aes(x = StartTreatmentDate, y = -1, xend = EndTreatmentDate, yend = -1,size=0.5, colour = as.character(broad_spec)),data=DF_plot[DF_plot$broad_spec==0,]) +
+  scale_colour_brewer(name="Broad Spectrum", palette="Pastel2") + theme(axis.title = element_text(size = 9), 
+    plot.title = element_text(size = 15), 
+    panel.background = element_rect(fill = "gray95"))+
+  facet_wrap(~patient_id, scales="free_x",ncol=10)+ylab("% abundance ESBL to 16s")+ylim(-2,1)
+print(i)
+dev.off()
+
+
 
 write.csv(DF4,file="./Cleaned_data/linked_qPCR_clin_abx.csv")
