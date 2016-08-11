@@ -6,7 +6,7 @@
 # Date: 1 August 2016
 
 # clear workspace, load libraries
-rm(list=ls())
+#rm(list=ls()) # DON'T EMPTY WORKSPACE
 library(dplyr)
 library(reshape)
 
@@ -35,6 +35,8 @@ Comp <- function(data)
 # Load Data file
 SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
                    sep= ",", colClasses=c("character")) # Linked Data
+abxcat <- read.csv ("./Raw_data/Antibiotics_list.csv", sep= ",", colClasses=c("character")) # Used to categorise the abx used
+
 
 ### Mutations  
 # turn into numerical
@@ -46,10 +48,14 @@ SDATA <- SDATA %>%
          qu_ratio = as.numeric(qu_ratio),
          ESBL_Ecoli = as.numeric(ESBL_Ecoli),
          ESBL_PPM = as.numeric(ESBL_PPM),
-         ESBL_KESC = as.numeric(ESBL_KESC)
+         ESBL_KESC = as.numeric(ESBL_KESC),
+         PatientAge = as.numeric(PatientAge)
   )
 # then also mutate the range of Antibiotics!
 SDATA <- SDATA %>% dplyr::mutate_each(funs(as.numeric),esbl_act:Cefalexin)
+# turn into factors
+SDATA <- SDATA %>% dplyr::mutate(Male = factor(PatientSex, levels = c("1","2")))
+SDATA <- SDATA %>% dplyr::mutate(WardType = factor(WardType, levels = c("1","2")))
 # turn into dates
 SDATA <- SDATA %>%
   plyr::mutate(RectalDate = as.Date(as.character(SDATA$RectalDate), format="%Y-%m-%d"))
@@ -73,18 +79,18 @@ mean.quratio = mean(SDATA$qu_ratio, na.rm = T) # calculate the mean
 max.quratio = max(SDATA$qu_ratio, na.rm = T) # calculate the mean
 
 ########
-# small table version of SDATA
+# Regression table version of SDATA
 #names(SDATA)[90:126] # those are all the antibiotics in action
 DF1 <- SDATA %>%
   dplyr::select(num,qu_ratio,Tdiff,RectalDate,ESBL_Ecoli,ESBL_KESC,ESBL_PPM,
-                esbl_act:Cefalexin)
+                esbl_act:Cefalexin,Male,PatientAge,WardType)
 
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
 
 # remove 2 outliers [maybe outliers, why are they outliers?]
 DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
-DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
+#DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
 # turn esbl_act into binary [is this a good idea?]
 DF1$esbl_act[DF1$esbl_act == 2] <- 1
 
@@ -108,6 +114,8 @@ DF2 <- DF1[-first.meas,] %>%
 
 # add a completely binary variable
 DF2$RandBinary <- rbinom(nrow(DF2),1,0.5)
+# add the difference in quantities
+DF2$QuToQuNext <- DF2$NextQuRatio - DF2$qu_ratio
 
 ### Regression with interaction [important because most points are 
 # small ratio -> small ratio, forces coefficient of binary to zero]
@@ -139,24 +147,50 @@ plot(DF_R4$qu_ratio, DF_R4$NextQuRatio, xlab="Previous QuRatio", ylab="Next Qu",
 curve(cbind(1, 1, x, 1*x) %*% coef(fit.4), add=TRUE, col="black")
 curve(cbind(1, 0,x, 0*x) %*% coef(fit.4), add=TRUE, col="gray")
 
+### Most simlistic regression model: [in 3 qu_ratio segments] qu_ratio ~ single.predictor
+
+# Absolute # occasions of AB treatment
+#colSums(DF2 == 1)
+
+# More than 20 occasions of treatment
+names(DF2)[colSums(DF2 == 1) > 20]
 
 # Output: NextQuRatio -- Predicting Features: 6 different ones
-DF_R5 <-  DF2
-#DF_R5 <- DF_R5 %>% dplyr::mutate_each(funs(as.numeric),esbl_act:Cefalexin)
-#(qu_ratio - mean(qu_ratio))/(2*(sd(qu_ratio)))
-fit.5 <- lm(formula = NextQuRatio ~ DaysToNextQuRatio + 
-     qu_ratio + esbl_act + qu_ratio:RandBinary, data = DF_R5) 
+qu.ratio.qunts <- quantile(DF2$qu_ratio, probs = c(1/3,2/3))
+
+DF_R <-  DF2[DF2$qu_ratio > qu.ratio.qunts[2],] # High gene ratio
+fit.5 <- lm(formula = QuToQuNext ~ 
+     RandBinary, data = DF_R) 
+
+DF_R <-  DF2[(DF2$qu_ratio < qu.ratio.qunts[2] & DF2$qu_ratio > qu.ratio.qunts[1]),] # Medium gene ratio
+fit.6 <- lm(formula = QuToQuNext ~ 
+              RandBinary, data = DF_R) 
+
+DF_R <-  DF2[(DF2$qu_ratio < qu.ratio.qunts[1]),] # Low gene ratio
+fit.7 <- lm(formula = QuToQuNext ~ 
+              RandBinary, data = DF_R) 
 summary(fit.5)
-# make output readable
+summary(fit.6)
+summary(fit.7)
+
+# Further analyse Ceftriaxone
+DF_R <-  DF2[(DF2$qu_ratio < qu.ratio.qunts[1]),] # All measurements
+fit.8 <- lm(formula = NextQuRatio ~ 
+              Ceftriaxone + qu_ratio, data = DF_R) 
+summary(fit.8)
+
+# All above 1/1mio ratio 
+DF_R <- DF2[(DF2$qu_ratio > 1/1e+06),]
+# Regression model
+fit.9 <- lm(formula = QuToQuNext ~ 
+              esbl_act + broad_spec +
+              Vancomycin + Levofloxacin + Meropenem +
+              Ceftriaxone + Gentamicin + Ciprofloxacin +
+              Metronidazole..Flagyl. + Clindamycin +
+              Amoxicillin.CA + RandBinary, data = DF_R)
+summary(fit.9)
 
 
-### Regressions without interaction term
-# Output: NextQuRatio -- Predicting Features: qu_ratio, esbl_act, broad_spec
-DF_R1 <-  DF2 %>% dplyr::select(num,qu_ratio,broad_spec,NextQuRatio)
-
-# Fit the NextQuRatio using the previous and broad_spec
-fit.1 <- lm(DF_R1$NextQuRatio ~ DF_R1$broad_spec + DF_R1$qu_ratio)
-fit.1
 # graphical display
 colors <- ifelse(DF_R1$broad_spec==1, "black", "gray")
 plot(DF_R1$qu_ratio, DF_R1$NextQuRatio, xlab="Previous QuRatio", ylab="Next Qu",
