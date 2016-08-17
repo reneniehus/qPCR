@@ -9,9 +9,7 @@
 #rm(list=ls()) # DON'T EMPTY WORKSPACE
 library(dplyr)
 library(reshape)
-
-# set the working directory
-setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/")
+library(compare)
 
 ### My functions
 # function that compares neighbouring elements of a data vector
@@ -36,7 +34,6 @@ Comp <- function(data)
 SDATA <- read.csv ("./Cleaned_data/linked_qPCR_clin_abx.csv",
                    sep= ",", colClasses=c("character")) # Linked Data
 abxcat <- read.csv ("./Raw_data/Antibiotics_list.csv", sep= ",", colClasses=c("character")) # Used to categorise the abx used
-
 
 ### Mutations  
 # turn into numerical
@@ -82,14 +79,14 @@ max.quratio = max(SDATA$qu_ratio, na.rm = T) # calculate the mean
 # Regression table version of SDATA
 #names(SDATA)[90:126] # those are all the antibiotics in action
 DF1 <- SDATA %>%
-  dplyr::select(num,qu_ratio,Tdiff,RectalDate,ESBL_Ecoli,ESBL_KESC,ESBL_PPM,
+  dplyr::select(patient_id,num,qu_ratio,Tdiff,RectalDate,ESBL_Ecoli,ESBL_KESC,ESBL_PPM,
                 esbl_act:Cefalexin,Male,PatientAge,WardType)
 
 # replace all NA by 0
 DF1[is.na(DF1)] <- 0
 
-# remove 2 outliers [maybe outliers, why are they outliers?]
-DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
+# remove at least the value > 100 [maybe outliers, why are they outliers?]
+# DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
 #DF1 <- DF1[-which(max(DF1$qu_ratio) == DF1$qu_ratio),]
 # turn esbl_act into binary [is this a good idea?]
 DF1$esbl_act[DF1$esbl_act == 2] <- 1
@@ -112,10 +109,22 @@ DF2 <- DF1[-first.meas,] %>%
   dplyr::select(-Tdiff) %>%
   dplyr::filter(!DaysToNextQuRatio < 0)
 
-# add a completely binary variable
+# add a completely random binary variable
 DF2$RandBinary <- rbinom(nrow(DF2),1,0.5)
 # add the difference in quantities
 DF2$QuToQuNext <- DF2$NextQuRatio - DF2$qu_ratio
+# add a combined Ciprofloxacin and Levofloxacin variable !!WORKS BECAUSE NO OVERLAP
+DF2$CiproOrLevo <- DF2$Ciprofloxacin + DF2$Levofloxacin
+# Get the patients that have high qu_ratio
+t.highqu.patients <- (DF2 %>% group_by(patient_id) %>%  summarise(quantl.5 = quantile(qu_ratio)[5]) %>% 
+                        filter(quantl.5 > 3))
+
+# look at the selected patients
+DF2[(as.character(DF2$patient_id) %in% t.highqu.patients$patient_id), # select only patients that I filtered before
+    (names(DF2) %in% c("patient_id","qu_ratio","RectalDate"))] # select only columns of interest
+
+# mark high qu data points (entire patients) in DF
+DF2$HighQu <- as.numeric(as.character(DF2$patient_id) %in% t.highqu.patients$patient_id)
 
 ### Regression with interaction [important because most points are 
 # small ratio -> small ratio, forces coefficient of binary to zero]
@@ -183,13 +192,59 @@ summary(fit.8)
 DF_R <- DF2[(DF2$qu_ratio > 1/1e+06),]
 # Regression model
 fit.9 <- lm(formula = QuToQuNext ~ 
-              esbl_act + broad_spec +
               Vancomycin + Levofloxacin + Meropenem +
               Ceftriaxone + Gentamicin + Ciprofloxacin +
               Metronidazole..Flagyl. + Clindamycin +
-              Amoxicillin.CA + RandBinary, data = DF_R)
+              Amoxicillin.CA + 
+              PatientAge + Male + WardType +
+              RandBinary, data = DF_R)
 summary(fit.9)
 
+
+# All above 1/1mio ratio 
+DF_R <- DF2[(DF2$qu_ratio >= 0/1e+06),]
+# After feature selection model
+fit.10 <- lm(formula = QuToQuNext ~ 
+              esbl_act + broad_spec +
+              CiproOrLevo +
+              Vancomycin + Meropenem +
+              Ceftriaxone +
+              Metronidazole..Flagyl. +
+              Amoxicillin.CA + 
+              WardType, data = DF_R)
+summary(fit.10)
+
+# only low qu_ratio
+DF_R <- DF2[(DF2$HighQu != 1),]
+fit.11 <- lm(formula = NextQuRatio ~ 
+               qu_ratio +
+               CiproOrLevo +
+               Vancomycin + Meropenem +
+               Ceftriaxone +
+               Metronidazole..Flagyl. +
+               Amoxicillin.CA, data = DF_R)
+summary(fit.11)
+
+
+### Implement Bugs model
+model {
+  for (i in 1:N) { # N individuals
+    for (w in 1:W) { # W weeks
+      hamd[i,w]~dnorm(mu[i,w],tau)
+      mu[i,w]<-alpha[i]+beta[treat[i]]*(w-1)
+    }
+    alpha[i]~dnorm(alpha.mu,alpha.tau) # random effects
+  }
+  # specification of priors ....
+  alpha.mu~dnorm(0,0.00001)
+  alpha.sigma~dunif(0,100) # prior for random effects variances
+  alpha.sigma.sq<-pow(alpha.sigma,2)
+  for (t in 1:T){  # T treatments
+    beta[t]~dnorm(0,0.00001)
+  }
+  tau~dgamma(0.001,0.001)
+  sigma.sq<-1/tau  # Normal errors
+}
 
 # graphical display
 colors <- ifelse(DF_R1$broad_spec==1, "black", "gray")
