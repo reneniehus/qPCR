@@ -6,7 +6,7 @@
 # Date: 28 June 2016 
 
 #setwd("~/Documents/RGNOSIS/qPCR/") # for Esther
-setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
+#setwd("~/Dropbox/LOMHWRU_MORU/SATURN_ESBL/_R/R_git/qPCR/") # for Rene
 
 rm(list=ls())
 # load those libraries
